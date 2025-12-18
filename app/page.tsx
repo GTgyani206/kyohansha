@@ -31,7 +31,7 @@ type ParsedMessage = {
 
 const ANGRY_SHAKE = {
   x: [0, -8, 8, -8, 8, 0],
-  transition: { duration: 0.6, ease: "easeInOut" },
+  transition: { duration: 0.6, ease: "easeInOut" as const },
 };
 
 function normalizeContent(raw: unknown): string {
