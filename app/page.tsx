@@ -1,11 +1,16 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { TextStreamChatTransport } from "ai";
+import { DefaultChatTransport } from "ai";
 import clsx from "clsx";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { Settings } from "lucide-react";
 import dynamic from "next/dynamic";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { PersonalitySelector, type PersonaType } from "@/components/PersonalitySelector";
+import { StreakCounter } from "@/components/StreakCounter";
+import { useStreak } from "@/hooks/useStreak";
 
 // Dynamic import for Live2D Model to avoid SSR issues
 const Live2DModel = dynamic(
@@ -32,6 +37,13 @@ type ParsedMessage = {
 const ANGRY_SHAKE = {
   x: [0, -8, 8, -8, 8, 0],
   transition: { duration: 0.6, ease: "easeInOut" as const },
+};
+
+// Persona display names for header
+const PERSONA_NAMES: Record<PersonaType, string> = {
+  outlaw: "Digital Outlaw",
+  menhera: "Menhera",
+  sister: "Onee-san",
 };
 
 function normalizeContent(raw: unknown): string {
@@ -69,17 +81,57 @@ function parseMessage(content: unknown): ParsedMessage {
 }
 
 export default function Home() {
-  const { messages, sendMessage, stop, status, error } = useChat({
-    transport: new TextStreamChatTransport({ api: "/api/chat" }),
-  });
-  const [localInput, setLocalInput] = useState("");
+  // Persona selection state
+  const [selectedPersona, setSelectedPersona] = useState<PersonaType>("outlaw");
+  const [showPersonaSelector, setShowPersonaSelector] = useState(false);
+
+  // Streak system
+  const { streak, flameTier, recordChat, isLoaded: streakLoaded } = useStreak();
+
+  // Chat state with persona in body - AI SDK v5 pattern
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: { persona: selectedPersona },
+      }),
+    [selectedPersona]
+  );
+
+  const { messages, sendMessage, stop, status, error } = useChat({ transport });
+  const isLoading = status === "streaming" || status === "submitted";
+
+  // AI SDK v5 no longer manages input state internally
+  const [input, setInput] = useState("");
+
   const [currentEmotion, setCurrentEmotion] = useState<MoodTag>("Neutral");
-  const [speakTrigger, setSpeakTrigger] = useState(0); // Increment to trigger speech
-  const isLoading = status === "streaming";
+  const [speakTrigger, setSpeakTrigger] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const prevStatusRef = useRef(status);
+
+  // Load persona from localStorage
+  useEffect(() => {
+    const savedPersona = localStorage.getItem("kyohansha_persona");
+    if (savedPersona && ["outlaw", "menhera", "sister"].includes(savedPersona)) {
+      setSelectedPersona(savedPersona as PersonaType);
+    }
+  }, []);
+
+  // Save persona to localStorage
+  const handleSelectPersona = (persona: PersonaType) => {
+    setSelectedPersona(persona);
+    localStorage.setItem("kyohansha_persona", persona);
+  };
+
+  // Custom submit handler that also records streak
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    recordChat(); // Record the chat for streak
+    sendMessage({ text: input });
+    setInput("");
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -95,23 +147,22 @@ export default function Home() {
   }, []);
 
   // Re-focus input after streaming completes and trigger speech
+  const prevLoadingRef = useRef(isLoading);
   useEffect(() => {
-    // Trigger speech when streaming just completed
-    if (prevStatusRef.current === "streaming" && status === "ready") {
-      // Use setTimeout to avoid synchronous setState warning
+    if (prevLoadingRef.current && !isLoading) {
       setTimeout(() => setSpeakTrigger((prev) => prev + 1), 0);
       inputRef.current?.focus();
     }
-    prevStatusRef.current = status;
-  }, [status]);
+    prevLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   // Track the latest AI emotion
   useEffect(() => {
     const lastAiMessage = [...messages].reverse().find((m) => m.role === "assistant");
     if (lastAiMessage) {
+      // AI SDK v5: extract text from parts array
       const rawText = lastAiMessage.parts
-        ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => p.text)
+        ?.map((p) => (p.type === "text" ? p.text : ""))
         .join("") ?? "";
       const { mood } = parseMessage(rawText);
       if (mood) {
@@ -122,29 +173,52 @@ export default function Home() {
 
   const reversedMessages = useMemo(() => messages, [messages]);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const content = localInput.trim();
-    if (!content) return;
-    setLocalInput("");
-    await sendMessage({ text: content });
-  };
-
   return (
     <div className="relative h-screen overflow-hidden bg-[#050505] text-[#e0e0e0]">
       {/* z-index 0: Background */}
       <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-br from-[#050505] via-[#0a0a12] to-[#050505]" />
-      
+
       {/* z-index 1: Live2D Model - Fixed position */}
       <div className="fixed bottom-0 left-0 z-[1]">
         <Live2DModel emotion={currentEmotion} speakTrigger={speakTrigger} />
       </div>
 
       {/* z-index 2: Header - Fixed at top */}
-      <header className="fixed left-0 right-0 top-0 z-[3] flex items-center justify-between border-b border-[#111]/50 bg-[#050505]/90 px-4 py-4 text-xs uppercase tracking-[0.28em] backdrop-blur-md md:px-10">
-        <span className="text-[#00ff41]">Kyōhansha // Digital Outlaw</span>
-        <span className="text-[#ff003c]">Channel: Void // {currentEmotion}</span>
+      <header className="fixed left-0 right-0 top-0 z-[3] flex items-center justify-between border-b border-[#111]/50 bg-[#050505]/90 px-4 py-4 backdrop-blur-md md:px-10">
+        <div className="flex items-center gap-4">
+          <span className="text-xs uppercase tracking-[0.28em] text-[#00ff41]">
+            Kyōhansha // {PERSONA_NAMES[selectedPersona]}
+          </span>
+          <button
+            onClick={() => setShowPersonaSelector(true)}
+            className="p-1.5 rounded-lg border border-gray-700 hover:border-[#00ff41] transition-colors"
+            title="Change Personality"
+          >
+            <Settings size={14} className="text-gray-400 hover:text-[#00ff41]" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Streak Counter */}
+          {streakLoaded && <StreakCounter streak={streak} flameTier={flameTier} />}
+
+          <span className="text-xs uppercase tracking-[0.28em] text-[#ff003c]">
+            {currentEmotion}
+          </span>
+        </div>
       </header>
+
+      {/* Personality Selector Modal */}
+      <AnimatePresence>
+        {showPersonaSelector && (
+          <PersonalitySelector
+            isOpen={showPersonaSelector}
+            onClose={() => setShowPersonaSelector(false)}
+            selectedPersona={selectedPersona}
+            onSelectPersona={handleSelectPersona}
+          />
+        )}
+      </AnimatePresence>
 
       {/* z-index 2: Chat Interface - Scrollable area */}
       <main className="relative z-[2] flex h-screen flex-col pt-16 pb-24">
@@ -155,10 +229,9 @@ export default function Home() {
           <div className="flex flex-1 flex-col justify-end gap-3">
             {reversedMessages.map((message) => {
               const isUser = message.role === "user";
-              // Extract text from message parts
+              // AI SDK v5: extract text from parts array
               const rawText = message.parts
-                ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
-                .map((p) => p.text)
+                ?.map((p) => (p.type === "text" ? p.text : ""))
                 .join("") ?? "";
               const { mood, text } = parseMessage(rawText);
 
@@ -209,15 +282,15 @@ export default function Home() {
             ref={inputRef}
             className="w-full rounded-lg border border-[#00ff41] bg-black/80 px-4 py-3 text-sm text-[#e0e0e0] outline-none ring-0 transition focus:border-[#7dff9a] focus:shadow-[0_0_18px_rgba(0,255,65,0.35)]"
             placeholder="Enter command..."
-            value={localInput}
-            onChange={(e) => setLocalInput(e.target.value)}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
             aria-label="Send a message"
             disabled={isLoading}
           />
           <button
             type="submit"
             className="rounded-md border border-[#00ff41] px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#00ff41] transition hover:border-[#7dff9a] hover:text-[#7dff9a] disabled:opacity-60"
-            disabled={!localInput.trim() || isLoading}
+            disabled={!input.trim() || isLoading}
           >
             Send
           </button>
