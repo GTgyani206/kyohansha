@@ -4,13 +4,16 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings } from "lucide-react";
+import { Settings, ShoppingBag } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { BlackMarket } from "@/components/BlackMarket";
 import { PersonalitySelector, type PersonaType } from "@/components/PersonalitySelector";
 import { StreakCounter } from "@/components/StreakCounter";
+import { useKarma } from "@/hooks/useKarma";
 import { useStreak } from "@/hooks/useStreak";
+import { KARMA_PER_CHAT } from "@/lib/gacha";
 
 // Dynamic import for Live2D Model to avoid SSR issues
 const Live2DModel = dynamic(
@@ -84,9 +87,13 @@ export default function Home() {
   // Persona selection state
   const [selectedPersona, setSelectedPersona] = useState<PersonaType>("outlaw");
   const [showPersonaSelector, setShowPersonaSelector] = useState(false);
+  const [showBlackMarket, setShowBlackMarket] = useState(false);
 
   // Streak system
   const { streak, flameTier, recordChat, isLoaded: streakLoaded } = useStreak();
+
+  // Karma system
+  const { karma, addKarma, spendKarma, isLoaded: karmaLoaded } = useKarma();
 
   // Chat state with persona in body - AI SDK v5 pattern
   const transport = useMemo(
@@ -124,11 +131,12 @@ export default function Home() {
     localStorage.setItem("kyohansha_persona", persona);
   };
 
-  // Custom submit handler that also records streak
+  // Custom submit handler that also records streak and awards karma
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
     recordChat(); // Record the chat for streak
+    addKarma(KARMA_PER_CHAT); // Award karma for chatting
     sendMessage({ text: input });
     setInput("");
   };
@@ -199,6 +207,18 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Karma Counter + Black Market */}
+          {karmaLoaded && (
+            <button
+              onClick={() => setShowBlackMarket(true)}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[#ff003c]/50 hover:border-[#ff003c] transition-colors group"
+              title="Black Market"
+            >
+              <ShoppingBag size={14} className="text-[#ff003c] group-hover:text-[#ff5675]" />
+              <span className="text-xs font-mono text-[#00ff41]">{karma} 力</span>
+            </button>
+          )}
+
           {/* Streak Counter */}
           {streakLoaded && <StreakCounter streak={streak} flameTier={flameTier} />}
 
@@ -219,6 +239,14 @@ export default function Home() {
           />
         )}
       </AnimatePresence>
+
+      {/* Black Market Modal */}
+      <BlackMarket
+        isOpen={showBlackMarket}
+        onClose={() => setShowBlackMarket(false)}
+        karma={karma}
+        onSpendKarma={spendKarma}
+      />
 
       {/* z-index 2: Chat Interface - Scrollable area */}
       <main className="relative z-[2] flex h-screen flex-col pt-16 pb-24">
