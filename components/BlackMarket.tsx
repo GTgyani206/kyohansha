@@ -15,7 +15,7 @@ interface BlackMarketProps {
     isOpen: boolean;
     onClose: () => void;
     karma: number;
-    onSpendKarma: (amount: number) => boolean;
+    onSpendKarma: (amount: number) => boolean | Promise<boolean>;
 }
 
 /**
@@ -32,11 +32,11 @@ export function BlackMarket({ isOpen, onClose, karma, onSpendKarma }: BlackMarke
 
     const canPull = karma >= PULL_COST && !isPulling;
 
-    const handlePull = useCallback(() => {
+    const handlePull = useCallback(async () => {
         if (!canPull) return;
 
         // Deduct karma first
-        const success = onSpendKarma(PULL_COST);
+        const success = await Promise.resolve(onSpendKarma(PULL_COST));
         if (!success) return;
 
         setIsPulling(true);
@@ -121,8 +121,8 @@ export function BlackMarket({ isOpen, onClose, karma, onSpendKarma }: BlackMarke
                                 <button
                                     onClick={() => setViewMode("summon")}
                                     className={`flex-1 py-3 text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${viewMode === "summon"
-                                            ? "text-[#ff003c] border-b-2 border-[#ff003c]"
-                                            : "text-gray-500 hover:text-gray-300"
+                                        ? "text-[#ff003c] border-b-2 border-[#ff003c]"
+                                        : "text-gray-500 hover:text-gray-300"
                                         }`}
                                 >
                                     <Sparkles size={14} />
@@ -131,8 +131,8 @@ export function BlackMarket({ isOpen, onClose, karma, onSpendKarma }: BlackMarke
                                 <button
                                     onClick={() => setViewMode("inventory")}
                                     className={`flex-1 py-3 text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${viewMode === "inventory"
-                                            ? "text-[#ff003c] border-b-2 border-[#ff003c]"
-                                            : "text-gray-500 hover:text-gray-300"
+                                        ? "text-[#ff003c] border-b-2 border-[#ff003c]"
+                                        : "text-gray-500 hover:text-gray-300"
                                         }`}
                                 >
                                     <Package size={14} />
@@ -196,8 +196,8 @@ export function BlackMarket({ isOpen, onClose, karma, onSpendKarma }: BlackMarke
                                                         onClick={handlePull}
                                                         disabled={!canPull}
                                                         className={`relative px-8 py-4 rounded-lg border-2 text-sm uppercase tracking-[0.2em] font-bold transition-all ${canPull
-                                                                ? "border-[#ff003c] text-[#ff003c] hover:bg-[#ff003c]/10 hover:shadow-[0_0_30px_rgba(255,0,60,0.3)]"
-                                                                : "border-gray-700 text-gray-600 cursor-not-allowed"
+                                                            ? "border-[#ff003c] text-[#ff003c] hover:bg-[#ff003c]/10 hover:shadow-[0_0_30px_rgba(255,0,60,0.3)]"
+                                                            : "border-gray-700 text-gray-600 cursor-not-allowed"
                                                             }`}
                                                         whileHover={canPull ? { scale: 1.05 } : {}}
                                                         whileTap={canPull ? { scale: 0.98 } : {}}

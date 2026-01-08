@@ -4,15 +4,17 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, ShoppingBag } from "lucide-react";
+import { Settings, ShoppingBag, LogOut, User } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { AuthModal } from "@/components/AuthModal";
 import { BlackMarket } from "@/components/BlackMarket";
+import { EmptyState } from "@/components/EmptyState";
 import { PersonalitySelector, type PersonaType } from "@/components/PersonalitySelector";
 import { StreakCounter } from "@/components/StreakCounter";
-import { useKarma } from "@/hooks/useKarma";
-import { useStreak } from "@/hooks/useStreak";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePersistence } from "@/hooks/usePersistence";
 import { KARMA_PER_CHAT } from "@/lib/gacha";
 
 // Dynamic import for Live2D Model to avoid SSR issues
@@ -55,15 +57,15 @@ function normalizeContent(raw: unknown): string {
     return raw
       .map((part) => {
         if (typeof part === "string") return part;
-        if (part && typeof part === "object" && "text" in part && typeof (part as any).text === "string") {
-          return (part as any).text;
+        if (part && typeof part === "object" && "text" in part && typeof (part as { text?: unknown }).text === "string") {
+          return (part as { text: string }).text;
         }
         return "";
       })
       .join("");
   }
-  if (raw && typeof raw === "object" && "text" in raw && typeof (raw as any).text === "string") {
-    return (raw as any).text;
+  if (raw && typeof raw === "object" && "text" in raw && typeof (raw as { text?: unknown }).text === "string") {
+    return (raw as { text: string }).text;
   }
   return "";
 }
@@ -84,16 +86,35 @@ function parseMessage(content: unknown): ParsedMessage {
 }
 
 export default function Home() {
-  // Persona selection state
+  // Auth state
+  const { user, isGuest, isLoading: authLoading, signOut } = useAuth();
+  const showAuthModal = !authLoading && !user && !isGuest;
+
+  // Persistence (handles Supabase vs localStorage)
+  const {
+    karma,
+    streak,
+    flameTier,
+    persona,
+    addKarma,
+    spendKarma,
+    recordChat,
+    updatePersona,
+    isLoaded: persistenceLoaded,
+    isLoggedIn,
+  } = usePersistence();
+
+  // Persona selection state (synced with persistence)
   const [selectedPersona, setSelectedPersona] = useState<PersonaType>("outlaw");
   const [showPersonaSelector, setShowPersonaSelector] = useState(false);
   const [showBlackMarket, setShowBlackMarket] = useState(false);
 
-  // Streak system
-  const { streak, flameTier, recordChat, isLoaded: streakLoaded } = useStreak();
-
-  // Karma system
-  const { karma, addKarma, spendKarma, isLoaded: karmaLoaded } = useKarma();
+  // Sync persona from persistence
+  useEffect(() => {
+    if (persistenceLoaded && persona) {
+      setSelectedPersona(persona as PersonaType);
+    }
+  }, [persistenceLoaded, persona]);
 
   // Chat state with persona in body - AI SDK v5 pattern
   const transport = useMemo(
@@ -117,18 +138,10 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load persona from localStorage
-  useEffect(() => {
-    const savedPersona = localStorage.getItem("kyohansha_persona");
-    if (savedPersona && ["outlaw", "menhera", "sister"].includes(savedPersona)) {
-      setSelectedPersona(savedPersona as PersonaType);
-    }
-  }, []);
-
-  // Save persona to localStorage
-  const handleSelectPersona = (persona: PersonaType) => {
-    setSelectedPersona(persona);
-    localStorage.setItem("kyohansha_persona", persona);
+  // Save persona to persistence
+  const handleSelectPersona = (newPersona: PersonaType) => {
+    setSelectedPersona(newPersona);
+    updatePersona(newPersona);
   };
 
   // Custom submit handler that also records streak and awards karma
@@ -139,6 +152,13 @@ export default function Home() {
     addKarma(KARMA_PER_CHAT); // Award karma for chatting
     sendMessage({ text: input });
     setInput("");
+  };
+
+  // Quick prompt handler for EmptyState
+  const handleQuickPrompt = (prompt: string) => {
+    recordChat();
+    addKarma(KARMA_PER_CHAT);
+    sendMessage({ text: prompt });
   };
 
   useEffect(() => {
@@ -181,8 +201,22 @@ export default function Home() {
 
   const reversedMessages = useMemo(() => messages, [messages]);
 
+  // Show loading state while auth is checking
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#050505]">
+        <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-[#00ff41]">
+          Establishing Connection...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-screen overflow-hidden bg-[#050505] text-[#e0e0e0]">
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} />
+
       {/* z-index 0: Background */}
       <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-br from-[#050505] via-[#0a0a12] to-[#050505]" />
 
@@ -208,7 +242,7 @@ export default function Home() {
 
         <div className="flex items-center gap-4">
           {/* Karma Counter + Black Market */}
-          {karmaLoaded && (
+          {persistenceLoaded && (
             <button
               onClick={() => setShowBlackMarket(true)}
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[#ff003c]/50 hover:border-[#ff003c] transition-colors group"
@@ -220,11 +254,27 @@ export default function Home() {
           )}
 
           {/* Streak Counter */}
-          {streakLoaded && <StreakCounter streak={streak} flameTier={flameTier} />}
+          {persistenceLoaded && <StreakCounter streak={streak} flameTier={flameTier} />}
 
           <span className="text-xs uppercase tracking-[0.28em] text-[#ff003c]">
             {currentEmotion}
           </span>
+
+          {/* User status / Logout */}
+          {isLoggedIn ? (
+            <button
+              onClick={signOut}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-700 hover:border-[#ff003c] transition-colors group"
+              title="Sign Out"
+            >
+              <LogOut size={14} className="text-gray-400 group-hover:text-[#ff003c]" />
+            </button>
+          ) : isGuest ? (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-500">
+              <User size={14} />
+              Ghost
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -250,47 +300,56 @@ export default function Home() {
 
       {/* z-index 2: Chat Interface - Scrollable area */}
       <main className="relative z-[2] flex h-screen flex-col pt-16 pb-24">
-        <div
-          ref={scrollRef}
-          className="pointer-events-auto ml-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 py-5 md:px-10"
-        >
-          <div className="flex flex-1 flex-col justify-end gap-3">
-            {reversedMessages.map((message) => {
-              const isUser = message.role === "user";
-              // AI SDK v5: extract text from parts array
-              const rawText = message.parts
-                ?.map((p) => (p.type === "text" ? p.text : ""))
-                .join("") ?? "";
-              const { mood, text } = parseMessage(rawText);
+        {messages.length === 0 ? (
+          /* Empty State */
+          <EmptyState
+            streak={streak}
+            flameTier={flameTier}
+            onQuickPrompt={handleQuickPrompt}
+          />
+        ) : (
+          <div
+            ref={scrollRef}
+            className="pointer-events-auto ml-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 py-5 md:px-10"
+          >
+            <div className="flex flex-1 flex-col justify-end gap-3">
+              {reversedMessages.map((message) => {
+                const isUser = message.role === "user";
+                // AI SDK v5: extract text from parts array
+                const rawText = message.parts
+                  ?.map((p) => (p.type === "text" ? p.text : ""))
+                  .join("") ?? "";
+                const { mood, text } = parseMessage(rawText);
 
-              const bubbleClasses = clsx(
-                "max-w-[78%] rounded-lg border px-4 py-3 text-sm leading-relaxed shadow-[0_0_24px_rgba(0,0,0,0.45)]",
-                "backdrop-blur-sm",
-                isUser
-                  ? "self-end border-[#00ff41] bg-black/70 text-[#e0e0e0]"
-                  : "self-start border-[#ff003c] bg-black/70 text-[#e0e0e0]"
-              );
+                const bubbleClasses = clsx(
+                  "max-w-[78%] rounded-lg border px-4 py-3 text-sm leading-relaxed shadow-[0_0_24px_rgba(0,0,0,0.45)]",
+                  "backdrop-blur-sm",
+                  isUser
+                    ? "self-end border-[#00ff41] bg-black/70 text-[#e0e0e0]"
+                    : "self-start border-[#ff003c] bg-black/70 text-[#e0e0e0]"
+                );
 
-              const moodAccent = !isUser && mood ? (
-                <span className="mb-2 block text-[0.7rem] uppercase tracking-[0.18em] text-[#ff003c]">
-                  {mood}
-                </span>
-              ) : null;
+                const moodAccent = !isUser && mood ? (
+                  <span className="mb-2 block text-[0.7rem] uppercase tracking-[0.18em] text-[#ff003c]">
+                    {mood}
+                  </span>
+                ) : null;
 
-              return (
-                <motion.div
-                  key={message.id}
-                  className={bubbleClasses}
-                  animate={mood === "Angry" && !isUser ? ANGRY_SHAKE : { x: 0 }}
-                >
-                  {moodAccent}
-                  <p className="whitespace-pre-wrap">{text}</p>
-                </motion.div>
-              );
-            })}
-            <div ref={bottomRef} />
+                return (
+                  <motion.div
+                    key={message.id}
+                    className={bubbleClasses}
+                    animate={mood === "Angry" && !isUser ? ANGRY_SHAKE : { x: 0 }}
+                  >
+                    {moodAccent}
+                    <p className="whitespace-pre-wrap">{text}</p>
+                  </motion.div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
           </div>
-        </div>
+        )}
 
         {error ? (
           <div className="mx-auto mt-3 max-w-md rounded-md border border-[#ff003c] bg-[#1a0008] px-3 py-2 text-sm text-[#ff5675]">
