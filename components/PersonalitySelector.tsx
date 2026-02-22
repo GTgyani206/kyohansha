@@ -77,15 +77,15 @@ export function PersonalitySelector({
 
             {/* Modal */}
             <motion.div
-                className="relative z-10 w-full max-w-3xl mx-4 glass-panel p-8"
+                className="relative z-10 w-full max-w-3xl mx-4 glass-panel p-6 sm:p-8"
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-6 sm:mb-8">
                     <div>
-                        <h2 className="text-xl font-bold text-cyber-accent uppercase tracking-[0.2em]">
+                        <h2 className="text-lg sm:text-xl font-bold text-cyber-accent uppercase tracking-[0.2em]">
                             Neural Synchrony
                         </h2>
                         <p className="text-xs text-white/50 mt-1 tracking-wider uppercase">
@@ -113,7 +113,7 @@ export function PersonalitySelector({
                                     onClose();
                                 }}
                                 className={`
-                  relative p-6 rounded-3xl border border-white/5 text-left transition-all duration-300
+                  relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/5 text-left transition-all duration-300
                   backdrop-blur-xl bg-black/40
                   ${isSelected
                                         ? "scale-[1.02] shadow-xl"

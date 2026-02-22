@@ -40,7 +40,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
             >
                 {/* Glitch layers */}
                 <motion.span
-                    className="absolute inset-0 text-center text-4xl font-bold tracking-[0.3em] text-cyber-accent opacity-50 blur-[1px]"
+                    className="absolute inset-0 text-center text-3xl sm:text-4xl font-bold tracking-[0.3em] text-cyber-accent opacity-50 blur-[1px]"
                     animate={{
                         x: [0, -2, 2, 0],
                         opacity: [0.7, 0.5, 0.7],
@@ -55,7 +55,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                     共犯者
                 </motion.span>
                 <motion.span
-                    className="absolute inset-0 text-center text-4xl font-bold tracking-[0.3em] text-cyber-danger/80 opacity-50 blur-[1px]"
+                    className="absolute inset-0 text-center text-3xl sm:text-4xl font-bold tracking-[0.3em] text-cyber-danger/80 opacity-50 blur-[1px]"
                     animate={{
                         x: [0, 2, -2, 0],
                         opacity: [0.7, 0.5, 0.7],
@@ -72,7 +72,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                 </motion.span>
 
                 {/* Main text */}
-                <h1 className="relative text-center text-4xl font-bold tracking-[0.3em] text-white">
+                <h1 className="relative text-center text-3xl sm:text-4xl font-bold tracking-[0.3em] text-white">
                     共犯者
                 </h1>
                 <p className="mt-2 text-center text-xs uppercase tracking-[0.4em] text-gray-600">
@@ -155,7 +155,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                     <motion.button
                         key={item.label}
                         onClick={() => onQuickPrompt(item.prompt)}
-                        className="group flex items-center gap-2 rounded-full border border-white/5 bg-black/40 px-5 py-3 text-xs uppercase tracking-wider text-white/50 backdrop-blur-md transition-all hover:border-cyber-accent/30 hover:bg-cyber-accent/10 hover:text-cyber-accent shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+                        className="group flex items-center gap-2 rounded-full border border-white/5 bg-black/40 px-4 py-2.5 sm:px-5 sm:py-3 text-[10px] sm:text-xs uppercase tracking-wider text-white/50 backdrop-blur-md transition-all hover:border-cyber-accent/30 hover:bg-cyber-accent/10 hover:text-cyber-accent shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 + index * 0.1 }}

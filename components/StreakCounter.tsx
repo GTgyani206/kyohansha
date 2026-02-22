@@ -112,13 +112,13 @@ export function StreakCounter({ streak, flameTier }: StreakCounterProps) {
             </motion.div>
 
             {/* Streak count */}
-            <div className="flex flex-col leading-none">
+            <div className="flex items-baseline gap-1 leading-none">
                 <motion.span
                     className="font-bold text-sm"
                     style={{ color: config.color }}
                     key={streak}
-                    initial={{ y: -10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 300 }}
                 >
                     {streak}

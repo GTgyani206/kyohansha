@@ -98,7 +98,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                         {/* Soft subtle glow under card */}
                         <div className="absolute -inset-2 rounded-[2rem] bg-cyber-accent/10 opacity-50 blur-xl" />
 
-                        <div className="relative glass-panel p-8">
+                        <div className="relative glass-panel p-6 sm:p-8">
                             {/* Close button */}
                             {allowClose && onClose && (
                                 <button

@@ -408,11 +408,11 @@ export default function Home() {
       </div>
 
       {/* z-index 2: Header - Floating glass pill */}
-      <header className="fixed left-4 right-4 top-4 z-[3] flex items-center justify-between px-6 py-3 glass-pill transition-all duration-500 max-w-6xl mx-auto">
+      <header className="fixed left-2 right-2 sm:left-4 sm:right-4 top-2 sm:top-4 z-[3] flex items-center justify-between px-3 sm:px-6 py-1.5 sm:py-2 glass-pill transition-all duration-500 max-w-6xl mx-auto">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-cyber-accent/80">Kyōhansha</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/50">// {PERSONA_NAMES[selectedPersona]}</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-cyber-accent/80">Kyōhansha</span>
+            <span className="hidden sm:inline text-[10px] uppercase tracking-[0.2em] text-white/50">// {PERSONA_NAMES[selectedPersona]}</span>
           </div>
           <button
             onClick={() => setShowPersonaSelector(true)}
@@ -428,18 +428,21 @@ export default function Home() {
           {persistenceLoaded && (
             <button
               onClick={() => setShowBlackMarket(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-input transition-colors group"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-input transition-colors group"
               title="Black Market"
             >
-              <ShoppingBag size={14} className="text-cyber-danger/80 group-hover:text-cyber-danger" />
-              <span className="text-xs font-mono text-cyber-accent/90">{karma} 力</span>
+              <ShoppingBag size={14} className="text-cyber-danger/80 group-hover:text-cyber-danger shrink-0" />
+              <div className="flex items-baseline gap-1 whitespace-nowrap">
+                <span className="text-xs font-bold font-mono text-cyber-accent/90">{karma}</span>
+                <span className="text-[10px] text-cyber-accent/70">力</span>
+              </div>
             </button>
           )}
 
           {/* Streak Counter */}
           {persistenceLoaded && <StreakCounter streak={streak} flameTier={flameTier} />}
 
-          <span className="text-[10px] rounded-full px-2 py-1 bg-cyber-danger/10 border border-cyber-danger/20 text-cyber-danger uppercase tracking-[0.2em]">
+          <span className="text-[10px] rounded-full px-2 py-0.5 bg-cyber-danger/10 border border-cyber-danger/20 text-cyber-danger uppercase tracking-[0.2em] whitespace-nowrap hidden sm:inline-block">
             {currentEmotion}
           </span>
 
@@ -505,7 +508,7 @@ export default function Home() {
                 const { mood, text } = parseMessage(rawText);
 
                 const bubbleClasses = clsx(
-                  "max-w-[85%] px-5 py-4 text-[15px] leading-relaxed",
+                  "max-w-[90%] sm:max-w-[85%] px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-[15px] leading-relaxed",
                   "glass-panel border-white/5",
                   isUser
                     ? "self-end !rounded-br-sm bg-cyber-accent/10 border-cyber-accent/20 text-white shadow-[0_4px_24px_rgba(8,145,178,0.15)]"
@@ -535,10 +538,10 @@ export default function Home() {
       </main>
 
       {/* z-index 3: Input Form - Floating pill layout */}
-      <div className="fixed bottom-6 w-full flex justify-center px-4 z-[3] pointer-events-none">
+      <div className="fixed bottom-2 sm:bottom-6 w-full flex justify-center px-2 sm:px-4 z-[3] pointer-events-none">
         <form
           onSubmit={handleSubmit}
-          className="pointer-events-auto w-full max-w-3xl glass-pill p-2 pl-4 pr-2 flex items-center gap-2"
+          className="pointer-events-auto w-full max-w-3xl glass-pill p-1.5 pl-3 pr-1.5 sm:p-2 sm:pl-4 sm:pr-2 flex items-center gap-2"
         >
           <button
             type="button"
@@ -587,14 +590,14 @@ export default function Home() {
               <button
                 type="button"
                 onClick={stop}
-                className="rounded-full bg-cyber-danger/20 hover:bg-cyber-danger/30 text-cyber-danger px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.15em] transition-all"
+                className="rounded-full bg-cyber-danger/20 hover:bg-cyber-danger/30 text-cyber-danger px-4 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] transition-all"
               >
                 Halt
               </button>
             ) : (
               <button
                 type="submit"
-                className="rounded-full bg-cyber-accent/20 hover:bg-cyber-accent/30 text-cyber-accent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.15em] transition-all disabled:opacity-50 disabled:hover:bg-cyber-accent/20"
+                className="rounded-full bg-cyber-accent/20 hover:bg-cyber-accent/30 text-cyber-accent px-4 sm:px-5 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] transition-all disabled:opacity-50 disabled:hover:bg-cyber-accent/20"
                 disabled={!input.trim()}
               >
                 Send

@@ -41,7 +41,7 @@ export function BlackMarket({ isOpen, onClose, karma }: BlackMarketProps) {
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-white/5 bg-black/40">
+                            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/5 bg-black/40">
                                 <div className="flex items-center gap-3">
                                     <span className="text-sm font-bold uppercase tracking-[0.2em] text-cyber-danger">
                                         Black Market
@@ -61,7 +61,7 @@ export function BlackMarket({ isOpen, onClose, karma }: BlackMarketProps) {
                             </div>
 
                             {/* Content Placeholder */}
-                            <div className="flex-1 p-12 flex flex-col items-center justify-center text-center min-h-[300px]">
+                            <div className="flex-1 p-8 sm:p-12 flex flex-col items-center justify-center text-center min-h-[300px]">
                                 <Package size={48} className="text-cyber-danger mb-6 opacity-40 animate-float" />
                                 <h3 className="text-lg font-bold uppercase tracking-[0.2em] text-white/90 mb-3">Encrypted Payload</h3>
                                 <p className="text-sm text-white/50 max-w-[280px] leading-relaxed">
