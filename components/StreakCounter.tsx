@@ -10,20 +10,20 @@ interface StreakCounterProps {
 
 const FLAME_CONFIGS = {
     spark: {
-        color: "#60a5fa", // Blue
-        glowColor: "rgba(96, 165, 250, 0.6)",
+        color: "#0891b2", // cyber-accent
+        glowColor: "rgba(8, 145, 178, 0.6)",
         size: 20,
         label: "Spark",
     },
     kindling: {
-        color: "#f97316", // Orange
-        glowColor: "rgba(249, 115, 22, 0.6)",
+        color: "#a855f7", // cyber-purple
+        glowColor: "rgba(168, 85, 247, 0.6)",
         size: 24,
         label: "Kindling",
     },
     inferno: {
-        color: "#dc2626", // Red
-        glowColor: "rgba(220, 38, 38, 0.8)",
+        color: "#e11d48", // cyber-danger
+        glowColor: "rgba(225, 29, 72, 0.8)",
         size: 28,
         label: "Inferno",
     },

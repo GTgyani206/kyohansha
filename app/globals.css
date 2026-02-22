@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+@theme {
+  --color-cyber-dark: #050508;
+  --color-cyber-panel: rgba(10, 15, 22, 0.6);
+  --color-cyber-border: rgba(255, 255, 255, 0.08);
+  --color-cyber-accent: #0891b2;
+  --color-cyber-danger: #e11d48;
+  --color-cyber-glow: rgba(8, 145, 178, 0.4);
+  
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 4s ease-in-out infinite;
+  --animate-glow: glow 3s ease-in-out infinite;
+  --animate-breathe: breathe 8s ease-in-out infinite;
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 15px var(--color-cyber-glow); }
+    50% { box-shadow: 0 0 25px var(--color-cyber-glow); }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 1; }
+  }
+}
+
 :root {
   color-scheme: dark;
 }
@@ -10,12 +41,29 @@
 
 body {
   margin: 0;
-  background-color: #050505;
+  background-color: var(--color-cyber-dark);
   color: #e0e0e0;
   font-family: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
   letter-spacing: 0.01em;
+  /* Deep, organic background texture */
+  background-image: radial-gradient(circle at 50% 0%, rgba(8, 145, 178, 0.15), transparent 60%),
+                    radial-gradient(circle at 0% 100%, rgba(107, 33, 168, 0.12), transparent 70%);
+  background-attachment: fixed;
 }
 
 a {
   color: inherit;
+}
+
+/* Glassmorphism utility classes for Tailwind 4 */
+.glass-panel {
+  @apply bg-cyber-panel backdrop-blur-2xl border border-cyber-border rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+}
+
+.glass-pill {
+  @apply bg-cyber-panel backdrop-blur-xl border border-cyber-border rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.2)];
+}
+
+.glass-input {
+  @apply bg-black/40 backdrop-blur-md border border-white/10 rounded-full focus:border-cyber-accent/50 focus:ring-1 focus:ring-cyber-accent/30 transition-all outline-none;
 }

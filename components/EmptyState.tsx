@@ -16,9 +16,9 @@ const QUICK_PROMPTS = [
 ];
 
 const FLAME_COLORS = {
-    spark: "#ff6b35",
-    kindling: "#ff3c00",
-    inferno: "#ff003c",
+    spark: "#0891b2", // cyber-accent
+    kindling: "#8b5cf6", // cyber-purple
+    inferno: "#e11d48", // cyber-danger
 };
 
 export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps) {
@@ -40,7 +40,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
             >
                 {/* Glitch layers */}
                 <motion.span
-                    className="absolute inset-0 text-center text-4xl font-bold tracking-[0.3em] text-[#00ff41] opacity-70"
+                    className="absolute inset-0 text-center text-4xl font-bold tracking-[0.3em] text-cyber-accent opacity-50 blur-[1px]"
                     animate={{
                         x: [0, -2, 2, 0],
                         opacity: [0.7, 0.5, 0.7],
@@ -55,7 +55,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                     共犯者
                 </motion.span>
                 <motion.span
-                    className="absolute inset-0 text-center text-4xl font-bold tracking-[0.3em] text-[#ff003c] opacity-70"
+                    className="absolute inset-0 text-center text-4xl font-bold tracking-[0.3em] text-cyber-danger/80 opacity-50 blur-[1px]"
                     animate={{
                         x: [0, 2, -2, 0],
                         opacity: [0.7, 0.5, 0.7],
@@ -128,7 +128,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                 transition={{ delay: 0.4 }}
             >
                 <motion.div
-                    className="h-2 w-2 rounded-full bg-[#00ff41]"
+                    className="h-2 w-2 rounded-full bg-cyber-accent shadow-[0_0_8px_rgba(8,145,178,0.8)]"
                     animate={{
                         opacity: [1, 0.3, 1],
                         scale: [1, 0.9, 1],
@@ -155,7 +155,7 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                     <motion.button
                         key={item.label}
                         onClick={() => onQuickPrompt(item.prompt)}
-                        className="group flex items-center gap-2 rounded-lg border border-gray-800 bg-black/50 px-4 py-2.5 text-xs uppercase tracking-wider text-gray-400 transition-all hover:border-[#00ff41]/50 hover:bg-[#00ff41]/5 hover:text-[#00ff41]"
+                        className="group flex items-center gap-2 rounded-full border border-white/5 bg-black/40 px-5 py-3 text-xs uppercase tracking-wider text-white/50 backdrop-blur-md transition-all hover:border-cyber-accent/30 hover:bg-cyber-accent/10 hover:text-cyber-accent shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 + index * 0.1 }}
@@ -171,8 +171,8 @@ export function EmptyState({ streak, flameTier, onQuickPrompt }: EmptyStateProps
                 ))}
             </motion.div>
 
-            {/* Decorative scanlines */}
-            <div className="pointer-events-none fixed inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.1)_2px,rgba(0,0,0,0.1)_4px)] opacity-30" />
+            {/* Atmospheric overlay */}
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(8,145,178,0.05),transparent_50%)]" />
         </motion.div>
     );
 }

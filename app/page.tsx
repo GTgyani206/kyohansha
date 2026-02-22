@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import clsx from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, ShoppingBag, LogOut, User } from "lucide-react";
+import { Settings, ShoppingBag, LogOut, User, Mic, MicOff, PhoneCall } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -24,7 +24,7 @@ const Live2DModel = dynamic(
     ssr: false,
     loading: () => (
       <div className="absolute bottom-0 left-0 z-[1] flex h-[80vh] w-[50vw] items-center justify-center">
-        <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-[#00ff41]">
+        <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-cyber-accent">
           Initializing Neural Link...
         </div>
       </div>
@@ -72,7 +72,8 @@ function normalizeContent(raw: unknown): string {
 
 function parseMessage(content: unknown): ParsedMessage {
   const textContent = normalizeContent(content);
-  const match = textContent.match(/^\[(Neutral|Happy|Angry|Smug|Sad)\]\s*/);
+  // Match the tag, and optionally match a following colon and whitespace
+  const match = textContent.match(/^\[(Neutral|Happy|Angry|Smug|Sad)\](?:[\s:]*)/);
 
   if (!match) {
     return { text: textContent };
@@ -112,7 +113,7 @@ export default function Home() {
   // Sync persona from persistence
   useEffect(() => {
     if (persistenceLoaded && persona) {
-      setSelectedPersona(persona as PersonaType);
+      setTimeout(() => setSelectedPersona(persona as PersonaType), 0);
     }
   }, [persistenceLoaded, persona]);
 
@@ -134,9 +135,174 @@ export default function Home() {
 
   const [currentEmotion, setCurrentEmotion] = useState<MoodTag>("Neutral");
   const [speakTrigger, setSpeakTrigger] = useState(0);
+
+  // Web Speech API (STT) State
+  const [isListening, setIsListening] = useState(false);
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
+
+  // Refs for tracking changing state inside closures
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+  const isContinuousModeRef = useRef(false);
+  const inputValRef = useRef(input);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const submitCallbackRef = useRef<((text: string) => void) | null>(null);
+  const wasLastInputFromSpeechRef = useRef(false);
+  const [ttsEnabledForNextInteraction, setTtsEnabledForNextInteraction] = useState(false);
+
+  useEffect(() => { isListeningRef.current = isListening; }, [isListening]);
+  useEffect(() => { isContinuousModeRef.current = isContinuousMode; }, [isContinuousMode]);
+  useEffect(() => { inputValRef.current = input; }, [input]);
+  useEffect(() => {
+    submitCallbackRef.current = (text) => {
+      recordChat();
+      addKarma(KARMA_PER_CHAT);
+      setTtsEnabledForNextInteraction(true);
+      wasLastInputFromSpeechRef.current = false;
+      sendMessage({ text });
+      setInput("");
+    };
+  }, [recordChat, addKarma, sendMessage]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const toggleContinuousMode = () => {
+    const next = !isContinuousMode;
+    setIsContinuousMode(next);
+    // If turning on and not listening, auto-start mic
+    if (next && !isListeningRef.current) {
+      toggleListening();
+    }
+  };
+
+  const handleSpeechStart = () => {
+    // Mute mic when AI speaks so it doesn't hear itself
+    if (isListening && recognitionRef.current) {
+      try {
+        isListeningRef.current = false;
+        recognitionRef.current.stop();
+        setIsListening(false);
+      } catch { }
+    }
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+  };
+
+  const handleSpeechEnd = () => {
+    // Auto-resume mic when AI finishes if in continuous mode
+    if (isContinuousModeRef.current && !isListening && recognitionRef.current) {
+      try {
+        setTimeout(() => {
+          if (isContinuousModeRef.current) {
+            recognitionRef.current.start();
+            setIsListening(true);
+          }
+        }, 400); // Small buffer before listening
+      } catch { }
+    }
+  };
+
+  // Initialize and toggle STT
+  const toggleListening = () => {
+    if (isListeningRef.current) {
+      isListeningRef.current = false;
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    // Set immediately to prevent strict-mode double firing
+    isListeningRef.current = true;
+    setIsListening(true);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const windowAny = window as any;
+    const SpeechRecognition = windowAny.SpeechRecognition || windowAny.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Your browser does not support the Web Speech API. Please use Chrome or Edge.");
+      isListeningRef.current = false;
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => console.debug("🎤 STT Started listening");
+    recognition.onsoundstart = () => console.debug("🔈 STT Sound detected");
+    recognition.onspeechstart = () => console.debug("🗣️ STT Speech detected");
+    recognition.onspeechend = () => console.debug("🤐 STT Speech ended");
+    recognition.onsoundend = () => console.debug("🔇 STT Sound ended");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        wasLastInputFromSpeechRef.current = true;
+        setInput((prev) => {
+          const newText = prev + (prev.endsWith(" ") || prev === "" ? "" : " ") + finalTranscript;
+          return newText;
+        });
+
+        // Auto-submit logic for continuous mode
+        if (isContinuousModeRef.current) {
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            const currentInput = inputValRef.current;
+            if (currentInput.trim()) {
+              submitCallbackRef.current?.(currentInput);
+            }
+          }, 1500); // Auto-send after 1.5s of silence
+        }
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
+      if (event.error === "network" || event.error === "no-speech" || event.error === "aborted") {
+        // Harmless transient errors in Chrome Speech API
+        console.debug(`Ignored STT error: ${event.error}`);
+        return;
+      }
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      // Auto-recover continuous mode if it unexpectedly dropped
+      if (isContinuousModeRef.current && isListeningRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          isListeningRef.current = false;
+          setIsListening(false);
+        }
+      } else {
+        isListeningRef.current = false;
+        setIsListening(false);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start speech recognition:", e);
+      isListeningRef.current = false;
+      setIsListening(false);
+    }
+  };
 
   // Save persona to persistence
   const handleSelectPersona = (newPersona: PersonaType) => {
@@ -150,6 +316,8 @@ export default function Home() {
     if (!input.trim()) return;
     recordChat(); // Record the chat for streak
     addKarma(KARMA_PER_CHAT); // Award karma for chatting
+    setTtsEnabledForNextInteraction(wasLastInputFromSpeechRef.current || isContinuousMode || isListening);
+    wasLastInputFromSpeechRef.current = false;
     sendMessage({ text: input });
     setInput("");
   };
@@ -194,7 +362,7 @@ export default function Home() {
         .join("") ?? "";
       const { mood } = parseMessage(rawText);
       if (mood) {
-        setCurrentEmotion(mood);
+        setTimeout(() => setCurrentEmotion(mood), 0);
       }
     }
   }, [messages]);
@@ -204,8 +372,8 @@ export default function Home() {
   // Show loading state while auth is checking
   if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#050505]">
-        <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-[#00ff41]">
+      <div className="flex h-screen items-center justify-center bg-transparent">
+        <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-cyber-accent">
           Establishing Connection...
         </div>
       </div>
@@ -218,45 +386,60 @@ export default function Home() {
       <AuthModal isOpen={showAuthModal} />
 
       {/* z-index 0: Background */}
-      <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-br from-[#050505] via-[#0a0a12] to-[#050505]" />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-black/20" />
 
       {/* z-index 1: Live2D Model - Fixed position */}
       <div className="fixed bottom-0 left-0 z-[1]">
-        <Live2DModel emotion={currentEmotion} speakTrigger={speakTrigger} />
+        <Live2DModel
+          emotion={currentEmotion}
+          speakTrigger={speakTrigger}
+          text={
+            messages
+              .filter(m => m.role === 'assistant')
+              .slice(-1)[0]
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ?.parts?.map((p: any) => p.type === 'text' ? p.text : '')
+              .join('') || ""
+          }
+          onSpeechStart={handleSpeechStart}
+          onSpeechEnd={handleSpeechEnd}
+          enableTTS={ttsEnabledForNextInteraction}
+        />
       </div>
 
-      {/* z-index 2: Header - Fixed at top */}
-      <header className="fixed left-0 right-0 top-0 z-[3] flex items-center justify-between border-b border-[#111]/50 bg-[#050505]/90 px-4 py-4 backdrop-blur-md md:px-10">
+      {/* z-index 2: Header - Floating glass pill */}
+      <header className="fixed left-4 right-4 top-4 z-[3] flex items-center justify-between px-6 py-3 glass-pill transition-all duration-500 max-w-6xl mx-auto">
         <div className="flex items-center gap-4">
-          <span className="text-xs uppercase tracking-[0.28em] text-[#00ff41]">
-            Kyōhansha // {PERSONA_NAMES[selectedPersona]}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-cyber-accent/80">Kyōhansha</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/50">// {PERSONA_NAMES[selectedPersona]}</span>
+          </div>
           <button
             onClick={() => setShowPersonaSelector(true)}
-            className="p-1.5 rounded-lg border border-gray-700 hover:border-[#00ff41] transition-colors"
+            className="p-2 rounded-full glass-input hover:text-cyber-accent transition-colors group"
             title="Change Personality"
           >
-            <Settings size={14} className="text-gray-400 hover:text-[#00ff41]" />
+            <Settings size={14} className="text-white/60 group-hover:text-cyber-accent" />
           </button>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Karma Counter + Black Market */}
           {persistenceLoaded && (
             <button
               onClick={() => setShowBlackMarket(true)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[#ff003c]/50 hover:border-[#ff003c] transition-colors group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-input transition-colors group"
               title="Black Market"
             >
-              <ShoppingBag size={14} className="text-[#ff003c] group-hover:text-[#ff5675]" />
-              <span className="text-xs font-mono text-[#00ff41]">{karma} 力</span>
+              <ShoppingBag size={14} className="text-cyber-danger/80 group-hover:text-cyber-danger" />
+              <span className="text-xs font-mono text-cyber-accent/90">{karma} 力</span>
             </button>
           )}
 
           {/* Streak Counter */}
           {persistenceLoaded && <StreakCounter streak={streak} flameTier={flameTier} />}
 
-          <span className="text-xs uppercase tracking-[0.28em] text-[#ff003c]">
+          <span className="text-[10px] rounded-full px-2 py-1 bg-cyber-danger/10 border border-cyber-danger/20 text-cyber-danger uppercase tracking-[0.2em]">
             {currentEmotion}
           </span>
 
@@ -264,13 +447,13 @@ export default function Home() {
           {isLoggedIn ? (
             <button
               onClick={signOut}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-700 hover:border-[#ff003c] transition-colors group"
+              className="p-2 rounded-full glass-input hover:border-cyber-danger/50 hover:text-cyber-danger transition-colors group"
               title="Sign Out"
             >
-              <LogOut size={14} className="text-gray-400 group-hover:text-[#ff003c]" />
+              <LogOut size={14} className="text-white/60 group-hover:text-cyber-danger" />
             </button>
           ) : isGuest ? (
-            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-input text-xs text-white/50">
               <User size={14} />
               Ghost
             </div>
@@ -322,18 +505,12 @@ export default function Home() {
                 const { mood, text } = parseMessage(rawText);
 
                 const bubbleClasses = clsx(
-                  "max-w-[78%] rounded-lg border px-4 py-3 text-sm leading-relaxed shadow-[0_0_24px_rgba(0,0,0,0.45)]",
-                  "backdrop-blur-sm",
+                  "max-w-[85%] px-5 py-4 text-[15px] leading-relaxed",
+                  "glass-panel border-white/5",
                   isUser
-                    ? "self-end border-[#00ff41] bg-black/70 text-[#e0e0e0]"
-                    : "self-start border-[#ff003c] bg-black/70 text-[#e0e0e0]"
+                    ? "self-end !rounded-br-sm bg-cyber-accent/10 border-cyber-accent/20 text-white shadow-[0_4px_24px_rgba(8,145,178,0.15)]"
+                    : "self-start !rounded-bl-sm bg-black/40 text-white/90"
                 );
-
-                const moodAccent = !isUser && mood ? (
-                  <span className="mb-2 block text-[0.7rem] uppercase tracking-[0.18em] text-[#ff003c]">
-                    {mood}
-                  </span>
-                ) : null;
 
                 return (
                   <motion.div
@@ -341,7 +518,6 @@ export default function Home() {
                     className={bubbleClasses}
                     animate={mood === "Angry" && !isUser ? ANGRY_SHAKE : { x: 0 }}
                   >
-                    {moodAccent}
                     <p className="whitespace-pre-wrap">{text}</p>
                   </motion.div>
                 );
@@ -358,40 +534,75 @@ export default function Home() {
         ) : null}
       </main>
 
-      {/* z-index 3: Input Form - Fixed at bottom */}
-      <form
-        onSubmit={handleSubmit}
-        className="fixed bottom-0 left-0 right-0 z-[3] border-t border-[#111] bg-[#050505]/95 px-4 py-4 backdrop-blur-md md:px-10"
-      >
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
-          <span className="text-[#00ff41]">&gt;</span>
+      {/* z-index 3: Input Form - Floating pill layout */}
+      <div className="fixed bottom-6 w-full flex justify-center px-4 z-[3] pointer-events-none">
+        <form
+          onSubmit={handleSubmit}
+          className="pointer-events-auto w-full max-w-3xl glass-pill p-2 pl-4 pr-2 flex items-center gap-2"
+        >
+          <button
+            type="button"
+            onClick={toggleContinuousMode}
+            className={clsx(
+              "flex items-center justify-center rounded-full p-2.5 transition-all duration-300 hidden sm:flex shrink-0",
+              isContinuousMode
+                ? "bg-cyber-accent/20 text-cyber-accent shadow-[0_0_15px_rgba(8,145,178,0.4)]"
+                : "text-white/40 hover:text-cyber-accent hover:bg-cyber-accent/10"
+            )}
+            title={isContinuousMode ? "End Live Call" : "Start Live Call (Continuous Voice)"}
+          >
+            <PhoneCall size={18} />
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={clsx(
+              "flex items-center justify-center rounded-full p-2.5 transition-all duration-300 shrink-0",
+              isListening
+                ? "bg-cyber-danger/20 text-cyber-danger shadow-[0_0_15px_rgba(225,29,72,0.4)]"
+                : "text-white/40 hover:text-cyber-accent hover:bg-cyber-accent/10"
+            )}
+            title={isListening ? "Stop listening" : "Start Voice Input"}
+          >
+            {isListening ? <Mic size={18} /> : <MicOff size={18} />}
+          </button>
+
           <input
             ref={inputRef}
-            className="w-full rounded-lg border border-[#00ff41] bg-black/80 px-4 py-3 text-sm text-[#e0e0e0] outline-none ring-0 transition focus:border-[#7dff9a] focus:shadow-[0_0_18px_rgba(0,255,65,0.35)]"
-            placeholder="Enter command..."
+            className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder-white/30 outline-none"
+            placeholder={isListening ? "Neural link active..." : "Initiate sequence..."}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              wasLastInputFromSpeechRef.current = false;
+              if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+            }}
             aria-label="Send a message"
             disabled={isLoading}
           />
-          <button
-            type="submit"
-            className="rounded-md border border-[#00ff41] px-4 py-2 text-xs uppercase tracking-[0.18em] text-[#00ff41] transition hover:border-[#7dff9a] hover:text-[#7dff9a] disabled:opacity-60"
-            disabled={!input.trim() || isLoading}
-          >
-            Send
-          </button>
-          {isLoading ? (
-            <button
-              type="button"
-              onClick={stop}
-              className="rounded-md border border-[#ff003c] px-3 py-2 text-[0.75rem] uppercase tracking-[0.14em] text-[#ff5675] transition hover:border-[#ff6f86] hover:text-[#ff6f86]"
-            >
-              Stop
-            </button>
-          ) : null}
-        </div>
-      </form>
+
+          <div className="flex items-center gap-2 pr-1 shrink-0">
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={stop}
+                className="rounded-full bg-cyber-danger/20 hover:bg-cyber-danger/30 text-cyber-danger px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.15em] transition-all"
+              >
+                Halt
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="rounded-full bg-cyber-accent/20 hover:bg-cyber-accent/30 text-cyber-accent px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.15em] transition-all disabled:opacity-50 disabled:hover:bg-cyber-accent/20"
+                disabled={!input.trim()}
+              >
+                Send
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

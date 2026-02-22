@@ -22,8 +22,8 @@ const PERSONAS: Persona[] = [
         subtitle: "Ronpa-王",
         icon: "💀",
         description: "Hyper-logical. Brutally honest. Finds humanity amusing.",
-        color: "#00ff41",
-        glowColor: "rgba(0, 255, 65, 0.3)",
+        color: "#0891b2",
+        glowColor: "rgba(8, 145, 178, 0.3)",
     },
     {
         id: "menhera",
@@ -31,8 +31,8 @@ const PERSONAS: Persona[] = [
         subtitle: "Menhera",
         icon: "🩹",
         description: "Unstable. Clingy. Desperately needs your love.",
-        color: "#ff69b4",
-        glowColor: "rgba(255, 105, 180, 0.3)",
+        color: "#a855f7",
+        glowColor: "rgba(168, 85, 247, 0.3)",
     },
     {
         id: "sister",
@@ -40,8 +40,8 @@ const PERSONAS: Persona[] = [
         subtitle: "Onee-san",
         icon: "🛡️",
         description: "Teasing. Protective. Ara ara~ energy.",
-        color: "#ffd700",
-        glowColor: "rgba(255, 215, 0, 0.3)",
+        color: "#f43f5e",
+        glowColor: "rgba(244, 63, 94, 0.3)",
     },
 ];
 
@@ -77,24 +77,24 @@ export function PersonalitySelector({
 
             {/* Modal */}
             <motion.div
-                className="relative z-10 w-full max-w-2xl mx-4"
+                className="relative z-10 w-full max-w-3xl mx-4 glass-panel p-8"
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h2 className="text-xl font-bold text-[#00ff41] uppercase tracking-[0.2em]">
-                            Choose Your Soul
+                        <h2 className="text-xl font-bold text-cyber-accent uppercase tracking-[0.2em]">
+                            Neural Synchrony
                         </h2>
-                        <p className="text-xs text-gray-500 mt-1 tracking-wide">
-                            Select your companion&apos;s personality
+                        <p className="text-xs text-white/50 mt-1 tracking-wider uppercase">
+                            Establish a new connection protocol
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-white transition-colors"
+                        className="p-2 rounded-full glass-input text-white/50 hover:text-cyber-accent transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -113,11 +113,11 @@ export function PersonalitySelector({
                                     onClose();
                                 }}
                                 className={`
-                  relative p-5 rounded-xl border-2 text-left transition-all
-                  bg-black/60 backdrop-blur-md
+                  relative p-6 rounded-3xl border border-white/5 text-left transition-all duration-300
+                  backdrop-blur-xl bg-black/40
                   ${isSelected
-                                        ? "border-opacity-100"
-                                        : "border-gray-700 hover:border-opacity-50"
+                                        ? "scale-[1.02] shadow-xl"
+                                        : "hover:bg-white/5 hover:border-white/10"
                                     }
                 `}
                                 style={{
@@ -148,15 +148,15 @@ export function PersonalitySelector({
 
                                 {/* Name & Subtitle */}
                                 <h3
-                                    className="font-bold text-lg"
+                                    className="font-bold text-lg tracking-wider uppercase"
                                     style={{ color: persona.color }}
                                 >
                                     {persona.name}
                                 </h3>
-                                <p className="text-xs text-gray-400 mb-2">{persona.subtitle}</p>
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-3">{persona.subtitle}</p>
 
                                 {/* Description */}
-                                <p className="text-xs text-gray-300 leading-relaxed">
+                                <p className="text-xs text-white/50 leading-relaxed">
                                     {persona.description}
                                 </p>
                             </motion.button>

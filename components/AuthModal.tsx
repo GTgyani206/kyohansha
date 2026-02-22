@@ -95,15 +95,15 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className="relative w-full max-w-md"
                     >
-                        {/* Neon border glow effect */}
-                        <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-b from-[#00ff41] via-[#00ff41]/50 to-[#00ff41]/20 opacity-70 blur-sm" />
+                        {/* Soft subtle glow under card */}
+                        <div className="absolute -inset-2 rounded-[2rem] bg-cyber-accent/10 opacity-50 blur-xl" />
 
-                        <div className="relative rounded-xl border border-[#00ff41]/50 bg-black/80 p-8 backdrop-blur-md">
+                        <div className="relative glass-panel p-8">
                             {/* Close button */}
                             {allowClose && onClose && (
                                 <button
                                     onClick={onClose}
-                                    className="absolute right-4 top-4 p-1 text-gray-500 transition-colors hover:text-[#00ff41]"
+                                    className="absolute right-4 top-4 p-2 rounded-full glass-input text-white/50 transition-colors hover:text-cyber-accent"
                                 >
                                     <X size={20} />
                                 </button>
@@ -112,8 +112,8 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                             {/* Header */}
                             <div className="mb-8 text-center">
                                 <div className="mb-2 flex items-center justify-center gap-2">
-                                    <Lock className="text-[#00ff41]" size={20} />
-                                    <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-[#00ff41]">
+                                    <Lock className="text-cyber-accent/80" size={20} />
+                                    <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-cyber-accent">
                                         Access Request
                                     </h2>
                                 </div>
@@ -123,12 +123,12 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                             </div>
 
                             {/* Mode Toggle */}
-                            <div className="mb-6 flex rounded-lg border border-gray-800 bg-black/50 p-1">
+                            <div className="mb-6 flex rounded-full bg-black/40 p-1 border border-white/5">
                                 <button
                                     onClick={() => setMode("login")}
-                                    className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs uppercase tracking-wider transition-all ${mode === "login"
-                                            ? "bg-[#00ff41]/20 text-[#00ff41]"
-                                            : "text-gray-500 hover:text-gray-300"
+                                    className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-wider transition-all ${mode === "login"
+                                        ? "bg-cyber-accent/20 text-cyber-accent shadow-[0_0_10px_rgba(8,145,178,0.2)]"
+                                        : "text-white/40 hover:text-white/70"
                                         }`}
                                 >
                                     <LogIn size={14} />
@@ -136,9 +136,9 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                 </button>
                                 <button
                                     onClick={() => setMode("signup")}
-                                    className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-xs uppercase tracking-wider transition-all ${mode === "signup"
-                                            ? "bg-[#00ff41]/20 text-[#00ff41]"
-                                            : "text-gray-500 hover:text-gray-300"
+                                    className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-wider transition-all ${mode === "signup"
+                                        ? "bg-cyber-accent/20 text-cyber-accent shadow-[0_0_10px_rgba(8,145,178,0.2)]"
+                                        : "text-white/40 hover:text-white/70"
                                         }`}
                                 >
                                     <UserPlus size={14} />
@@ -151,7 +151,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                 {/* Email */}
                                 <div className="relative">
                                     <Mail
-                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50"
                                         size={16}
                                     />
                                     <input
@@ -159,7 +159,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="Email Address"
-                                        className="w-full rounded-lg border border-gray-800 bg-black/50 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#00ff41] focus:shadow-[0_0_10px_rgba(0,255,65,0.3)]"
+                                        className="w-full glass-input py-3 pl-10 pr-4 text-sm text-white placeholder-white/30"
                                         disabled={isLoading}
                                     />
                                 </div>
@@ -167,7 +167,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                 {/* Password */}
                                 <div className="relative">
                                     <Lock
-                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50"
                                         size={16}
                                     />
                                     <input
@@ -175,7 +175,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Password"
-                                        className="w-full rounded-lg border border-gray-800 bg-black/50 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#00ff41] focus:shadow-[0_0_10px_rgba(0,255,65,0.3)]"
+                                        className="w-full glass-input py-3 pl-10 pr-4 text-sm text-white placeholder-white/30"
                                         disabled={isLoading}
                                     />
                                 </div>
@@ -191,7 +191,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                         >
                                             <div className="relative">
                                                 <Lock
-                                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50"
                                                     size={16}
                                                 />
                                                 <input
@@ -199,7 +199,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                                     value={confirmPassword}
                                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                                     placeholder="Confirm Password"
-                                                    className="w-full rounded-lg border border-gray-800 bg-black/50 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 outline-none transition-colors focus:border-[#00ff41] focus:shadow-[0_0_10px_rgba(0,255,65,0.3)]"
+                                                    className="w-full glass-input py-3 pl-10 pr-4 text-sm text-white placeholder-white/30"
                                                     disabled={isLoading}
                                                 />
                                             </div>
@@ -214,7 +214,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                             initial={{ opacity: 0, y: -10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
-                                            className="rounded-md border border-[#ff003c]/50 bg-[#ff003c]/10 px-4 py-2 text-xs text-[#ff003c]"
+                                            className="rounded-xl border border-cyber-danger/30 bg-cyber-danger/10 px-4 py-2 text-xs text-cyber-danger"
                                         >
                                             {error}
                                         </motion.div>
@@ -224,7 +224,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                             initial={{ opacity: 0, y: -10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
-                                            className="rounded-md border border-[#00ff41]/50 bg-[#00ff41]/10 px-4 py-2 text-xs text-[#00ff41]"
+                                            className="rounded-xl border border-cyber-accent/30 bg-cyber-accent/10 px-4 py-2 text-xs text-cyber-accent"
                                         >
                                             {success}
                                         </motion.div>
@@ -235,7 +235,7 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full rounded-lg border border-[#00ff41] bg-[#00ff41]/10 py-3 text-xs font-bold uppercase tracking-[0.2em] text-[#00ff41] transition-all hover:bg-[#00ff41]/20 hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] disabled:opacity-50"
+                                    className="w-full rounded-full bg-cyber-accent/20 border border-cyber-accent/30 py-3 text-xs font-bold uppercase tracking-[0.2em] text-cyber-accent transition-all hover:bg-cyber-accent/30 hover:shadow-[0_0_20px_rgba(8,145,178,0.3)] disabled:opacity-50"
                                 >
                                     {isLoading ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -260,11 +260,11 @@ export function AuthModal({ isOpen, onClose, allowClose = false }: AuthModalProp
                             {/* Ghost Mode Button */}
                             <button
                                 onClick={handleGuestMode}
-                                className="group flex w-full items-center justify-center gap-2 rounded-lg border border-gray-800 bg-transparent py-3 text-xs uppercase tracking-[0.15em] text-gray-500 transition-all hover:border-gray-600 hover:text-gray-300"
+                                className="group flex w-full items-center justify-center gap-2 rounded-full border border-white/5 bg-transparent py-3 text-xs uppercase tracking-[0.15em] text-white/40 transition-all hover:border-white/20 hover:text-white/70 hover:bg-white/5"
                             >
                                 <Ghost size={16} className="transition-transform group-hover:scale-110" />
                                 Ghost Mode
-                                <span className="text-[10px] text-gray-600">(Local Only)</span>
+                                <span className="text-[10px] text-white/30">(Local Only)</span>
                             </button>
                         </div>
                     </motion.div>

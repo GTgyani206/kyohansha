@@ -43,9 +43,13 @@ const motionDurations: Record<EmotionType, number> = {
 interface Live2DModelProps {
   emotion: EmotionType;
   speakTrigger?: number; // Increment to trigger speech
+  text?: string; // The actual text the bot is saying
+  onSpeechStart?: () => void;
+  onSpeechEnd?: () => void;
+  enableTTS?: boolean;
 }
 
-export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
+export function Live2DModel({ emotion, speakTrigger = 0, text = "", onSpeechStart, onSpeechEnd, enableTTS = false }: Live2DModelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const modelRef = useRef<any>(null);
@@ -66,14 +70,14 @@ export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
       // Wait for Live2DCubismCore to be available
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const win = window as any;
-      
+
       let attempts = 0;
       while (typeof win.Live2DCubismCore === "undefined" && attempts < 10) {
         console.log("Waiting for Live2DCubismCore...", attempts);
         await new Promise((resolve) => setTimeout(resolve, 200));
         attempts++;
       }
-      
+
       if (typeof win.Live2DCubismCore === "undefined") {
         setError("Live2DCubismCore not loaded");
         setIsLoading(false);
@@ -85,11 +89,13 @@ export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
       try {
         // Dynamically import to avoid SSR issues
         const PIXI = await import("pixi.js");
-        
+
         // Register PIXI globally (required by pixi-live2d-display)
         win.PIXI = PIXI;
-        
-        const { Live2DModel: L2DModel } = await import("pixi-live2d-display/cubism4");
+
+        // Import cubism4-only build directly (main entry requires Cubism 2 runtime)
+        // @ts-expect-error - no subpath exports in package.json, but file exists
+        const { Live2DModel: L2DModel } = await import("pixi-live2d-display/lib/cubism4");
 
         if (destroyed) return;
 
@@ -109,12 +115,12 @@ export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
           "/Resources/hibiki/runtime/hibiki-silent.model3.json",
           { autoInteract: false }
         );
-        
+
         if (destroyed) {
           model.destroy();
           return;
         }
-        
+
         modelRef.current = model;
 
         // Sound is enabled by default - Speak motions will play sound
@@ -143,13 +149,19 @@ export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
     return () => {
       destroyed = true;
       if (app) {
-        app.destroy(true);
+        // destroy(false) prevents PIXI from removing the canvas element from DOM, 
+        // which prevents React "insertBefore" errors when Strict Mode unmounts.
+        app.destroy(false, { children: true });
       }
     };
   }, []);
 
-  // Handle speaking - play emotion-specific Speak motion (with sound) when triggered
+  // Handle speaking - play emotion-specific Speak motion (with sound) and Text-to-Speech when triggered
   const prevSpeakTriggerRef = useRef(speakTrigger);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     // Only trigger on actual change (not initial mount)
     if (speakTrigger === prevSpeakTriggerRef.current || speakTrigger === 0) {
@@ -164,25 +176,109 @@ export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
     const motionManager = model.internalModel?.motionManager;
     if (!motionManager) return;
 
+    // Stop currently playing audio and TTS if any
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.currentTime = 0;
+    }
+    if (ttsUrlRef.current) {
+      URL.revokeObjectURL(ttsUrlRef.current);
+      ttsUrlRef.current = null;
+    }
+    window.speechSynthesis?.cancel(); // Fallback cleanup
+
+    // Map the emotion to the actual sound file name
+    let filename = emotion.toLowerCase();
+
+    // There isn't a "sad.mp3", but there is "happy_shy" and "greeting_rude" - fallback to neutral if needed, 
+    // or map Sad specifically if we want to fallback gracefully. Let's try standardizing to fallback files.
+    if (filename === 'sad') {
+      filename = 'neutral';
+    }
+
+    const audio = new Audio(`/assets/sounds/${filename}.mp3`);
+    audioRef.current = audio;
+
     // Get the speak motion group for the current emotion
     const speakGroup = speakMotionMap[emotion];
     const duration = motionDurations[emotion];
 
     try {
-      // Play the emotion-specific Speak motion (with sound)
+      // 1. Play background emotion sound effect
+      audio.play().catch(e => console.error("Audio play failed:", e));
+
+      // 2. Play the emotion-specific Speak motion (Live2D animation)
       motionManager.startMotion(speakGroup, 0, 3); // Priority 3 (highest)
-      console.log(`🔊 Speaking! Emotion: ${emotion}, Motion: ${speakGroup}, Duration: ${duration}ms`);
+      console.log(`🔊 Speaking! Emotion: ${emotion}, Motion: ${speakGroup}, Duration: ${duration}ms, Text: ${text}`);
       setSoundEnabled(true);
-      
-      // Reset sound enabled state after motion completes
-      setTimeout(() => {
-        console.log("🔇 Speech complete - ready for next");
-        setSoundEnabled(false);
-      }, duration + 500); // Add 500ms buffer
+
+      // 3. Play Text-to-Speech (OpenAI API Proxy)
+      if (text && enableTTS) {
+        // Run async fetch without blocking the emotion sound/animation above
+        const playTTS = async () => {
+          try {
+            const response = await fetch("/api/tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text }),
+            });
+
+            if (!response.ok) throw new Error("TTS fetch failed");
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            // Create playable audio element for the voice
+            const ttsAudio = new Audio(url);
+            ttsAudioRef.current = ttsAudio; // Store ref
+            ttsUrlRef.current = url; // Store URL for cleanup
+
+            // Ensure Live2D motion stays active until voice finishes speaking
+            ttsAudio.onended = () => {
+              console.log("🔇 TTS Speech complete - ready for next");
+              setSoundEnabled(false);
+              URL.revokeObjectURL(url); // Clean up memory
+              ttsUrlRef.current = null;
+              ttsAudioRef.current = null;
+              onSpeechEnd?.();
+            };
+
+            onSpeechStart?.();
+            await ttsAudio.play();
+
+            // Store reference if we need to cancel it on next trigger
+            // Using the existing audioRef might conflict with background emotion noise
+            // so we don't strictly bind it unless we add a new ref, but keeping it 
+            // simple for now since reactions are short.
+          } catch (err) {
+            console.error("OpenAI TTS failed to play:", err);
+            // Fallback reset if TTS fails
+            setTimeout(() => {
+              setSoundEnabled(false);
+              onSpeechEnd?.();
+            }, duration + 500);
+          }
+        };
+
+        playTTS();
+      } else {
+        // Reset sound enabled state after motion completes if no text
+        setTimeout(() => {
+          console.log("🔇 Motion complete - ready for next");
+          setSoundEnabled(false);
+          onSpeechEnd?.();
+        }, duration + 500); // Add 500ms buffer
+      }
     } catch (err) {
       console.error("Speak motion error:", err);
+      setSoundEnabled(false);
+      onSpeechEnd?.();
     }
-  }, [speakTrigger, emotion]);
+  }, [speakTrigger, emotion, text, onSpeechStart, onSpeechEnd, enableTTS]);
 
   // React to emotion changes - trigger expression and motion (without sound)
   useEffect(() => {
@@ -228,7 +324,7 @@ export function Live2DModel({ emotion, speakTrigger = 0 }: Live2DModelProps) {
     <div className="pointer-events-none">
       {isLoading && (
         <div className="flex h-[600px] w-[400px] items-center justify-center">
-          <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-[#00ff41]">
+          <div className="animate-pulse text-sm uppercase tracking-[0.2em] text-cyber-accent">
             Loading Neural Link...
           </div>
         </div>
